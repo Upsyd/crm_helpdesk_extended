@@ -139,6 +139,23 @@
 
 ################################################################################################
 
+########################Extended form view of fetchmail #######################################
+
+		<record model="ir.ui.view" id="view_email_server_form_extended">
+			<field name="name">fetchmail.server.form.extended</field>
+			<field name="model">fetchmail.server</field>
+			<field name="inherit_id" ref="fetchmail.view_email_server_form" />
+			<field name="arch" type="xml">
+				<xpath expr="/form/sheet/notebook/page/group/field[@name='original']" position="after">
+					<field name="email_sent_from"/>
+				</xpath>
+				<xpath expr="/form/sheet/notebook/page/group/field[@name='active']" position="after">
+					<field name="email_reply_to"/>
+				</xpath>
+			</field>
+		</record>
+#################################################################################################
+		
 ########################### MY HELPDESK ACTION AND MENUITEM ###################################
 
         <record id="crm_my_helpdesk_action" model="ir.actions.act_window">
@@ -197,6 +214,12 @@
             <field name="model">crm.helpdesk</field>
 			<field name="inherit_id" ref="crm_helpdesk.crm_case_form_view_helpdesk" />
             <field name="arch" type="xml">
+				<xpath expr="/form/sheet/notebook/page/group/group/field[@name='partner_id']" position="after">
+					<field name="email_sent_from"/>
+				</xpath>
+				<xpath expr="/form/sheet/notebook/page/group/group/field[@name='partner_id']" position="after">
+					<field name="email_reply_to"/>
+				</xpath>
 				<xpath expr="/form/sheet/group/field[@name='section_id']" position="replace">
 					<field name="section_id" widget="selection"/>
 				</xpath>
