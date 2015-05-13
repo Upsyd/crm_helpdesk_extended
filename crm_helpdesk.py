@@ -573,7 +573,7 @@ class mail_mail(osv.Model):
             return True
         return super(mail_mail, self).send(cr, uid, ids, auto_commit, raise_exception, context=context)  
 
-
+'''
 class crm_helpdesk_emails(osv.osv):
     _name = 'crm.helpdesk.emails'
     _columns = {
@@ -581,7 +581,7 @@ class crm_helpdesk_emails(osv.osv):
             'reply_to': fields.char('Reply To'),
             'model_id':fields.many2one('ir.model', 'Model')
     }
-
+'''
 
 class res_partner(osv.osv):
     _inherit = 'res.partner'
