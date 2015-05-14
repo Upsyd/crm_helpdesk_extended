@@ -7,7 +7,7 @@ from openerp.osv import fields, osv, orm
 from openerp import tools
 from openerp.tools.translate import _
 from openerp.tools import html2plaintext
-from openerp import tools, SUPERUSER_ID, api
+from openerp import tools, SUPERUSER_ID,api
 from openerp.tools.mail import plaintext2html
 import base64
 import logging
@@ -15,30 +15,29 @@ from email.utils import formataddr
 from urlparse import urljoin
 from openerp.addons.base.ir.ir_mail_server import MailDeliveryException
 from openerp.tools.safe_eval import safe_eval as eval
+from openerp.tools import ustr
 _logger = logging.getLogger(__name__)
-from openerp.tools.translate import _
+
 
 from collections import OrderedDict
 import xmlrpclib
 from openerp.addons.mail.mail_message import decode
-from openerp.tools import ustr
 
 
 class crm_helpdesk(osv.osv):
     _inherit = 'crm.helpdesk'
-
-################ TO CREATE NEW PARTNER FOR CRM HELPDESK REQUEST IF PARTNER IS UNKNOWN TO SYSTEM #####
+    
+################ TO CREATE NEW PARTNER FOR CRM HELPDESK REQUEST IF PARTNER IS UNKNOWN TO SYSTEM #####    
+    
     def message_new(self, cr, uid, msg, custom_values=None, context=None):
         """ Overrides mail_thread message_new that is called by the mailgateway
             through message_process.
             This override updates the document according to the email.
         """
-        print '\n message new $$$$$$',msg,context
         if custom_values is None:
             custom_values = {}
         desc = html2plaintext(msg.get('body')) if msg.get('body') else ''
         Partner_obj = self.pool.get('res.partner')
-        Fetchmail = self.pool.get('fetchmail.server')
         if msg.get('author_id') is False:
             vals = {
             'name' : msg.get('from').split('<')[0].strip(),
@@ -47,25 +46,19 @@ class crm_helpdesk(osv.osv):
             partner = Partner_obj.create(cr, uid, vals)
         else:
             partner = msg.get('author_id', False)
-        if context.get('fetchmail_server_id'):
-            fetchmail_obj = Fetchmail.browse(cr, uid, context.get('fetchmail_server_id'))
         defaults = {
             'name': msg.get('subject') or _("No Subject"),
-#            'description': desc,
+            #'description': desc,
             'email_from': msg.get('from'),
             'email_cc': msg.get('cc'),
             'user_id': False,
             'partner_id': partner,
-            'email_sent_from' : fetchmail_obj.email_sent_from,
-            'email_reply_to' : fetchmail_obj.email_reply_to,
         }
         defaults.update(custom_values)
-        print 'message new ending ==',defaults
-        return super(osv.Model, self).message_new(cr, uid, msg, custom_values=defaults, context=context)
-
-
-#######################################################################################################
-
+        return super(crm_helpdesk, self).message_new(cr, uid, msg, custom_values=defaults, context=context)
+    
+#######################################################################################################    
+    
 ############## TO ADD PARTNER AS FOLLOWER ###############
 
     def create(self, cr, uid, vals, context=None):
@@ -86,9 +79,8 @@ class crm_helpdesk(osv.osv):
                 'subtype_ids': [(6, 0, subtype_ids)],
             }, context=context)
        # self.pool.get('crm.helpdesk').message_subscribe(cr, uid, [cre_id], list(new), context=context)
-        print "$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$", cre_id
         return cre_id
-
+        
     def write(self, cr, uid, ids, values, context=None):
         Helpdesk_obj = self.pool.get('crm.helpdesk')
         old_partner_id = Helpdesk_obj.browse(cr, uid, ids).partner_id.id
@@ -98,30 +90,9 @@ class crm_helpdesk(osv.osv):
             old = set([old_partner_id])
             Helpdesk_obj.message_unsubscribe(cr, uid, ids, list(old), context=context)
             Helpdesk_obj.message_subscribe(cr, uid, ids, list(new), context=context)
-        if uid != SUPERUSER_ID:
-            team_obj = self.pool.get('crm.case.section')
-            team1_id = team_obj.search(cr, uid, [('name', 'in', ['Tier 1'])])
-            team_ids = team_obj.search(cr, uid, [('name', 'in', ['Tier 2', 'Tier 3'])])
-            if team1_id:team1_id=team1_id[0]
-            users = [x.id for x in team_obj.browse(cr, uid, team1_id).member_ids]
-            if uid in users:
-                if self.browse(cr, uid, ids[0]).section_id and self.browse(cr, uid, ids[0]).section_id.id in team_ids:
-                    raise osv.except_osv(_('Error!'), _('You can not edit this case.'))
         return super(crm_helpdesk, self).write(cr, uid, ids, values, context=context)
-
-    def search(self, cr, uid, args, offset=0, limit=None, order=None, context=None, count=False):
-        if uid != SUPERUSER_ID:
-            team_obj = self.pool.get('crm.case.section')
-            team1_id = team_obj.search(cr, uid, [('name', 'in', ['Tier 1'])])
-            team_ids = team_obj.search(cr, uid, [('name', 'in', ['Tier 1', 'Tier 2', 'Tier 3'])])
-            if team1_id:team1_id=team1_id[0]
-            users = [x.id for x in team_obj.browse(cr, uid, team1_id).member_ids]
-            if uid in users:
-                args.append(('section_id', 'in', team_ids))
-        return super(crm_helpdesk, self).search(cr, uid, args, offset=offset, limit=limit, order=order,
-            context=context, count=count)
-
-#######################################################
+        
+#######################################################    
 
     def _new_req_count(self, cr, uid, ids, arg, field_name, context=None):
         res = {}
@@ -167,22 +138,22 @@ class crm_helpdesk(osv.osv):
         count = helpdesk_obj.search(cr, uid, [('state', '=', 'cancel'), ('partner_id', '=', hd_obj.partner_id.id)], context=context)
         res[ids] = len(count)
         return res
-
+        
     def _journal_item_count(self, cr, uid, ids, field_name, arg, context=None):
-        res = dict(map(lambda x: (x, {'journal_item_count': 0, 'contracts_count': 0}), ids))
+        res = dict(map(lambda x: (x,{'journal_item_count': 0, 'contracts_count': 0}), ids))
         MoveLine = self.pool('account.move.line')
         AnalyticAccount = self.pool('account.analytic.account')
         helpdesk_obj = self.pool['crm.helpdesk']
         hd_obj = helpdesk_obj.browse(cr, uid, ids)
         part_acc_move_line = len(MoveLine.search(cr, uid, [('partner_id', '=', hd_obj.partner_id.id)], context=context))
-        part_anal_acc = len(AnalyticAccount.search(cr, uid, [('partner_id', '=', hd_obj.partner_id.id)], context=context))
+        part_anal_acc = len(AnalyticAccount.search(cr,uid, [('partner_id', '=', hd_obj.partner_id.id)], context=context))
         res[hd_obj.id]['journal_item_count'] = part_acc_move_line
         res[hd_obj.id]['contracts_count'] = part_anal_acc
         return res
-
-
+        
+             
     def _opportunity_meeting_phonecall_count(self, cr, uid, ids, field_name, arg, context=None):
-        res = dict(map(lambda x: (x, {'opportunity_count': 0, 'meeting_count': 0}), ids))
+        res = dict(map(lambda x: (x,{'opportunity_count': 0, 'meeting_count': 0}), ids))
         # the user may not have access rights for opportunities or meetings
         try:
             for hd_obj in self.browse(cr, uid, ids, context):
@@ -198,7 +169,7 @@ class crm_helpdesk(osv.osv):
             phone_id = self.pool['crm.phonecall'].search(cr, uid, [('partner_id', '=', hd_obj.partner_id.id)])
             res[hd_obj.id]['phonecall_count'] = len(phone_id)
         return res
-
+    
     def _invoice_total(self, cr, uid, ids, field_name, arg, context=None):
         result = {}
         account_invoice_report = self.pool.get('account.invoice.report')
@@ -208,9 +179,9 @@ class crm_helpdesk(osv.osv):
             invoices = account_invoice_report.browse(cr, uid, invoice_ids, context=context)
             result[helpdesk.id] = sum(inv.user_currency_price_total for inv in invoices)
         return result
-
+    
     def _sale_order_count(self, cr, uid, ids, field_name, arg, context=None):
-        res = dict(map(lambda x: (x, 0), ids))
+        res = dict(map(lambda x: (x,0), ids))
         # The current user may not have access rights for sale orders
         try:
             for helpdesk in self.browse(cr, uid, ids, context):
@@ -218,17 +189,17 @@ class crm_helpdesk(osv.osv):
         except:
             pass
         return res
-
+    
     def _claim_count(self, cr, uid, ids, field_name, arg, context=None):
-        res = dict(map(lambda x: (x, 0), ids))
+        res = dict(map(lambda x: (x,0), ids))       
         Claim = self.pool['crm.claim']
         for helpdesk in self.browse(cr, uid, ids, context):
             claim_ids = Claim.search(cr, uid, [('partner_id', '=', helpdesk.partner_id.id)])
             res[helpdesk.id] = len(claim_ids)
         return res
-
+    
     def _issue_count(self, cr, uid, ids, field_name, arg, context=None):
-        res = dict(map(lambda x: (x, 0), ids))
+        res = dict(map(lambda x: (x,0), ids))               
         Issue = self.pool['project.issue']
         for helpdesk in self.browse(cr, uid, ids, context):
             issue_ids = Issue.search(cr, uid, [('partner_id', '=', helpdesk.partner_id.id)])
@@ -236,46 +207,39 @@ class crm_helpdesk(osv.osv):
         return res
 
     def _task_count(self, cr, uid, ids, field_name, arg, context=None):
-        res = dict(map(lambda x: (x, 0), ids))
+        res = dict(map(lambda x: (x,0), ids))                       
         Task = self.pool['project.task']
         for helpdesk in self.browse(cr, uid, ids, context):
             task_ids = Task.search(cr, uid, [('partner_id', '=', helpdesk.partner_id.id)])
             res[helpdesk.id] = len(task_ids)
         return res
 
-
+    
     _columns = {
         'new_req_count': fields.function(_new_req_count, string='New', type='integer'),
         'in_prog_req_count': fields.function(_in_prog_req_count, string='In Progress', type='integer'),
         'pend_req_count': fields.function(_pend_req_count, string='Pending', type='integer'),
         'close_req_count': fields.function(_close_req_count, string='Closed', type='integer'),
-        'canc_req_count': fields.function(_canc_req_count, string='Cancelled', type='integer'),
-        'contracts_count': fields.function(_journal_item_count, string="Contracts", type='integer', multi="invoice_journal"),
-        'journal_item_count': fields.function(_journal_item_count, string="Journal Items", type="integer", multi="invoice_journal"),
+        'canc_req_count': fields.function(_canc_req_count, string='Cancelled', type='integer'),   
+        'contracts_count': fields.function(_journal_item_count, string="Contracts", type='integer', multi="invoice_journal"),                
+        'journal_item_count': fields.function(_journal_item_count, string="Journal Items", type="integer", multi="invoice_journal"),    
         'opportunity_count': fields.function(_opportunity_meeting_phonecall_count, string="Opportunity", type='integer', multi='opp_meet'),
         'meeting_count': fields.function(_opportunity_meeting_phonecall_count, string="Meetings", type='integer', multi='opp_meet'),
-        'phonecall_count': fields.function(_opportunity_meeting_phonecall_count, string="Calls", type="integer", multi='opp_meet'),
+        'phonecall_count': fields.function(_opportunity_meeting_phonecall_count, string="Calls", type="integer", multi='opp_meet'), 
         'total_invoiced': fields.function(_invoice_total, string="Total Invoiced", type='float', groups='account.group_account_invoice'),
-        'sale_order_count': fields.function(_sale_order_count, string='# of Sales Order', type='integer'),
-        'claim_count': fields.function(_claim_count, string='# Claims', type='integer'),
-        'issue_count': fields.function(_issue_count, type='integer', string="Issues",),
+        'sale_order_count': fields.function(_sale_order_count, string='# of Sales Order', type='integer'),                               
+        'claim_count': fields.function(_claim_count, string='# Claims', type='integer'),        
+        'issue_count': fields.function(_issue_count, type='integer', string="Issues",),        
         'task_count': fields.function(_task_count, string='# Tasks', type='integer'),
         'section_id': fields.many2one('crm.case.section', 'Sales Team', \
                             select=True, help='Responsible sales team. Define Responsible user and Email account for mail gateway.'),
-        'email_reply_to' : fields.char('Email Replyto', size=128),
-        'email_sent_from' : fields.char('Email Sent From', size=128),
 
     }
-
-
-    _defaults = {
-        'always_true': True,
-    }
-
+    
 
 class mail_notification(osv.Model):
     _inherit = 'mail.notification'
-
+    
     def get_signature_footer(self, cr, uid, user_id, res_model=None, res_id=None, context=None, user_signature=True):
         """ Format a standard footer for notification emails (such as pushed messages
             notification or invite emails).
@@ -301,18 +265,18 @@ class mail_notification(osv.Model):
             footer = tools.append_content_to_html(footer, signature, plaintext=False)
 
 
-#######################TO MAKE SIGNATURE UNCLICKABLE FOR CRM HELPDESK ##########################
+#######################TO MAKE SIGNATURE UNCLICKABLE FOR CRM HELPDESK ##########################        
 #        if (context.get('default_res_model') and context.get('default_res_model') == 'crm.helpdesk') or (context.get('default_model') and context.get('default_model') == 'crm.helpdesk'):
-
+            
 #            helpdesk_rec = self.pool.get('crm.helpdesk').browse(cr, uid, context.get('default_res_id'))
 #            case_str = _('Ticket# %(id)s about Helpdesk %(Query)s')
 #            case_string = '<br /><small>%s</small>' % (case_str % {
 #            'id' : helpdesk_rec.id,
 #            'Query' : helpdesk_rec.name})
-#
+#            
 #            footer = tools.append_content_to_html(footer, case_string, plaintext=False, container_tag='div')
-
-###############################################
+            
+###############################################         
         else:
             # add company signature
             if user.company_id.website:
@@ -330,11 +294,11 @@ class mail_notification(osv.Model):
 
 
         return footer
-
-
+        
+    
 class mail_mail(osv.Model):
     _inherit = 'mail.mail'
-
+    
     def _get_partner_access_link(self, cr, uid, mail, partner=None, context=None):
         """ Generate URLs for links in mails:
             - partner is not an user: signup_url
@@ -350,10 +314,10 @@ class mail_mail(osv.Model):
                                                                 action='mail.action_mail_redirect',
                                                                 model=mail.model, res_id=mail.res_id,
                                                                 context=contex_signup)[partner.id]
-#################### TO REMOVE CLICKABLE LINK FROM SIGNATURE FOR CRM HELPDESK ##################
+#################### TO REMOVE CLICKABLE LINK FROM SIGNATURE FOR CRM HELPDESK ##################   
             if (context.get('default_model') == 'crm.helpdesk' and context.get('default_model') == 'crm.helpdesk') or (context.get('default_res_model') =='crm.helpdesk' and context.get('default_res_model') =='crm.helpdesk') or (context.get('thread_model') == 'crm.helpdesk' and context.get('thread_model') == 'crm.helpdesk') or (context.get('model_name') == 'Helpdesk' and context.get('model_name') == 'Helpdesk'):
                 return res
-#################################################################################################
+#################################################################################################                
             else:
                 return ", <span class='oe_mail_footer_access'><small>%(access_msg)s <a style='color:inherit' href='%(portal_link)s'>%(portal_msg)s</a></small></span>" % {
                     'access_msg': _('access directly to'),
@@ -364,24 +328,22 @@ class mail_mail(osv.Model):
             base_url = self.pool.get('ir.config_parameter').get_param(cr, SUPERUSER_ID, 'web.base.url')
             mail_model = mail.model or 'mail.thread'
             url = urljoin(base_url, self.pool[mail_model]._get_access_link(cr, uid, mail, partner, context=context))
-
-#########################################
+            
+#########################################            
             if (context.get('default_model') == 'crm.helpdesk' and context.get('default_model') == 'crm.helpdesk') or (context.get('default_res_model') =='crm.helpdesk' and context.get('default_res_model') =='crm.helpdesk') or (context.get('thread_model') == 'crm.helpdesk' and context.get('thread_model') == 'crm.helpdesk') or (context.get('model_name') == 'Helpdesk' and context.get('model_name') == 'Helpdesk'):
                 return res
-###########################################
+###########################################                
             else:
                 return "<span class='oe_mail_footer_access'><small>%(access_msg)s <a style='color:inherit' href='%(portal_link)s'>%(portal_msg)s</a></small></span>" % {
                     'access_msg': _('about') if mail.record_name else _('access'),
                     'portal_link': url,
                     'portal_msg': '%s %s' % (context.get('model_name', ''), mail.record_name) if mail.record_name else _('your messages'),
                 }
-
+                
         else:
             return None
-    
+            
     def send(self, cr, uid, ids, auto_commit=False, raise_exception=False, context=None):
-        print '\n send of helpdesk',context,self
-        
         """ Sends the selected emails immediately, ignoring their current
             state (mails that have already been sent should not be passed
             unless they should actually be re-sent).
@@ -447,59 +409,48 @@ class mail_mail(osv.Model):
                     mail_sent = False
                     # build an RFC2822 email.message.Message object and send it without queuing
                     res = None
-
+                    
                     for email in email_list:
-                        print '\n in for loop==',email
+                        email_sub = email.get('subject')
+                        body = ''
                         if mail.mail_message_id.model == 'crm.helpdesk':
-                            body = ''
-                            if mail.mail_message_id.model == 'crm.helpdesk':
-                                message_pool = self.pool.get('mail.message')
-
-                                message_ids = message_pool.search(cr, SUPERUSER_ID, [
-                                    ('model', '=', mail.mail_message_id.model),
-                                    ('res_id', '=', context.get('default_res_id')),
-                                ], context=context)
+                            message_pool = self.pool.get('mail.message')
+                            message_ids = message_pool.search(cr, SUPERUSER_ID, [
+                                ('model', '=', mail.mail_message_id.model),
+                                ('res_id', '=', context.get('default_res_id')),
+                            ], context=context)
+                            
+                            for message_id in message_pool.browse(cr, uid, message_ids[1:], context=context):
                                 
-                                for message_id in message_pool.browse(cr, uid, message_ids[1:], context=context):
-                                    
-                                    body += "<div style='margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex'><br><br>On %s " % message_id.date
-                                    body += message_id.body + "</div>"
+                                body += "<div style='margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex'><br><br>On %s " % message_id.date
+                                body += message_id.body + "</div>"
                                     
                             email.update({'body' : email.get('body') + ustr(body)})
+
                             # start custom code for send mail from 'Email Sent From' field
-                            helpdesk_obj = self.pool.get('crm.helpdesk').browse(cr, uid, context.get('default_res_id'), context=context)
-                            print '\n helpdesk_obj==',helpdesk_obj,context.get('default_res_id'),context
-    ##########################################################                        
-    #                        if context.get('default_res_id', False):
-    #                            email_sub = ('['+'Case'+ ' ' + str(context.get('default_res_id'))+']') + ' '+ (helpdesk_obj.name)
-    #                        crm_helpdesk_mails = self.pool.get('crm.helpdesk.emails').search(cr, uid, [])
-    #                        if crm_helpdesk_mails:
-    #                            crm_helpdesk_browse = self.pool.get('crm.helpdesk.emails').browse(cr, uid, crm_helpdesk_mails[0])
-    #                            email_from1 = crm_helpdesk_browse.sent_from or ''
-    #                            if crm_helpdesk_browse.reply_to:
-    #                                reply_to1 = crm_helpdesk_browse.reply_to
-    #                            else:
-    #                                reply_to1 = crm_helpdesk_browse.sent_from
-    ##########################################################
+                            helpdesk_obj = self.pool.get('crm.helpdesk').browse(cr, uid, context.get('default_res_id'), context=context)                        
+                            if context.get('default_res_id', False):
+                                email_sub = ('['+'Case'+ ' ' + str(context.get('default_res_id'))+']') + ' '+ (helpdesk_obj.name)
                             email_from1 = ''
                             reply_to1 = ''
-                            email_from1 = helpdesk_obj.email_sent_from
-                            if helpdesk_obj.email_reply_to:
-                                reply_to1 = helpdesk_obj.email_reply_to
-                            else:
-                                reply_to1 = helpdesk_obj.email_sent_from
-                            print '\n message process ',email_from1,reply_to1
-
+                            crm_helpdesk_mails = self.pool.get('crm.helpdesk.emails').search(cr, uid, [])
+                            if crm_helpdesk_mails:
+                                crm_helpdesk_browse = self.pool.get('crm.helpdesk.emails').browse(cr, uid, crm_helpdesk_mails[0])
+                                email_from1 = crm_helpdesk_browse.sent_from or ''
+                                if crm_helpdesk_browse.reply_to:
+                                    reply_to1 = crm_helpdesk_browse.reply_to
+                                else:
+                                    reply_to1 = crm_helpdesk_browse.sent_from
+                            
                         else:
                             email_from1 = mail.email_from
                             reply_to1 = mail.reply_to
-
-    #################TO CHANGE SUBJECT FOR HELPDESK ################
                         
+    #################TO CHANGE SUBJECT FOR HELPDESK ################
                         msg = ir_mail_server.build_email(
                             email_from=email_from1,
                             email_to=email.get('email_to'),
-                            subject= email.get('subject'),
+                            subject= email_sub,#email.get('subject'),
                             body= email.get('body'),
                             body_alternative=email.get('body_alternative'),
                             email_cc=tools.email_split(mail.email_cc),
@@ -513,20 +464,18 @@ class mail_mail(osv.Model):
                             headers=headers)
                         try:
                             #check for ir mail server if is it configure or not if not then take default
-    ################### ADDED TO SPLIT MAIL ID FROM THE STRING #############################
+    ################### ADDED TO SPLIT MAIL ID FROM THE STRING #############################                        
                             if email_from1.partition('<')[2].partition('>')[0].strip():
                                 mail_frm = email_from1.partition('<')[2].partition('>')[0].strip()
                             else:
                                 mail_frm = email_from1
-    ##################################################################
-                            server_id = ir_mail_server.search(cr, uid, [('smtp_user', '=', mail_frm)])
+    ##################################################################                            
+                            server_id = ir_mail_server.search(cr, uid, [('smtp_user','=', mail_frm)])
                             if server_id:
-                                print '\n if ',server_id
                                 res = ir_mail_server.send_email(cr, uid, msg,
                                                             mail_server_id=server_id,
                                                             context=context)
                             else:
-                                print '\n else ',mail.mail_server_id.id,mail.mail_server_id.name
                                 res = ir_mail_server.send_email(cr, uid, msg,
                                                         mail_server_id=mail.mail_server_id.id,
                                                         context=context)
@@ -571,65 +520,37 @@ class mail_mail(osv.Model):
                 if auto_commit is True:
                     cr.commit()
             return True
-        return super(mail_mail, self).send(cr, uid, ids, auto_commit, raise_exception, context=context)  
-
-'''
+        return super(mail_mail, self).send(cr, uid, ids, auto_commit, raise_exception, context=context)
+    
 class crm_helpdesk_emails(osv.osv):
     _name = 'crm.helpdesk.emails'
     _columns = {
             'sent_from': fields.char('Email Sent From'),
             'reply_to': fields.char('Reply To'),
-            'model_id':fields.many2one('ir.model', 'Model')
+            'model_id':fields.many2one('ir.model','Model')
     }
-'''
+
 
 class res_partner(osv.osv):
     _inherit = 'res.partner'
-
     def _Helpdesk_count(self, cr, uid, ids, field_name, arg, context=None):
         Helpdesks = self.pool['crm.helpdesk']
         return {
-            partner_id: Helpdesks.search_count(cr, uid, [('partner_id', '=', partner_id)], context=context)
+            partner_id: Helpdesks.search_count(cr,uid, [('partner_id', '=', partner_id)], context=context)  
             for partner_id in ids
         }
 
-    def write(self, cr, uid, ids, vals, context=None, check=True, update_check=True):
-        if context is None:
-            context={}
-        if uid != SUPERUSER_ID:     
-            team_obj = self.pool.get('crm.case.section')
-            team_id = team_obj.search(cr, uid, [('name', 'ilike', 'Tier 1')])
-            if team_id:team_id=team_id[0]
-            users = [x.id for x in team_obj.browse(cr, uid, team_id).member_ids]
-            if uid in users:
-                raise osv.except_osv(_('Error!'), _('You can not edit this customer.'))
-        return super(res_partner, self).write(cr, uid, ids, vals, context)
-
-    def unlink(self, cr, uid, ids, context=None, check=True):
-        if context is None:
-            context = {}
-        if uid != SUPERUSER_ID:
-            team_obj = self.pool.get('crm.case.section')
-            team_id = team_obj.search(cr, uid, [('name', 'ilike', 'Tier 1')])
-            if team_id:team_id=team_id[0]
-            users = [x.id for x in team_obj.browse(cr, uid, team_id).member_ids]
-            if uid in users:
-                raise osv.except_osv(_('Error!'), _('You can not delete this customer.'))
-        return super(res_partner, self).unlink(cr, uid, ids, context=context)
-
     _columns = {
         'helpdesk_count': fields.function(_Helpdesk_count, string='# Helpdesks', type='integer'),
-#        'check_tier1_field': fields.function(_check_tier1, fnct_search=_check_tier1_search , type='boolean', string="is tier1"),
     }
-
+    
 
 class mail_thread(osv.AbstractModel):
-    _inherit = 'mail.thread'
-
+    _inherit = 'mail.thread'    
+    
     def message_process(self, cr, uid, model, message, custom_values=None,
                         save_original=False, strip_attachments=False,
                         thread_id=None, context=None):
-        print '\n message_process'
         """ Process an incoming RFC2822 email message, relying on
             ``mail.message.parse()`` for the parsing operation,
             and ``message_route()`` to figure out the target model.
@@ -677,7 +598,7 @@ class mail_thread(osv.AbstractModel):
 
         # parse the message, verify we are not in a loop by checking message_id is not duplicated
         msg = self.message_parse(cr, uid, msg_txt, save_original=save_original, context=context)
-
+        
         if strip_attachments:
             msg.pop('attachments', None)
 
@@ -693,17 +614,15 @@ class mail_thread(osv.AbstractModel):
         # find possible routes for the message
         routes = self.message_route(cr, uid, msg_txt, msg, model, thread_id, custom_values, context=context)
         thread_id = self.message_route_process(cr, uid, msg_txt, msg, routes, context=context)
-        print '\n message process',routes,thread_id
         if routes[0][0] == 'crm.helpdesk' and msg.get('parent_id'):
             Helpdesk_obj = self.pool.get('crm.helpdesk')
             hd_rec = Helpdesk_obj.browse(cr, uid, routes[0][1])
             if hd_rec.state in ['draft', 'pending', 'done', 'cancel']:
                 Helpdesk_obj.write(cr, uid, routes[0][1], {'state' : 'open'})
-        return thread_id
+        return thread_id    
 
 
     def message_route_process(self, cr, uid, message, message_dict, routes, context=None):
-        print '\n message_route_process'
         # postpone setting message_dict.partner_ids after message_post, to avoid double notifications
         context = dict(context or {})
         partner_ids = message_dict.pop('partner_ids', [])
@@ -723,10 +642,8 @@ class mail_thread(osv.AbstractModel):
                 # email gateway become a follower of all inbound messages
                 nosub_ctx = dict(context, mail_create_nosubscribe=True, mail_create_nolog=True)
                 if thread_id and hasattr(model_pool, 'message_update'):
-                    print '\n update message of message_route_process'
                     model_pool.message_update(cr, user_id, [thread_id], message_dict, context=nosub_ctx)
                 else:
-                    print '\n model of route process',model_pool
                     thread_id = model_pool.message_new(cr, user_id, message_dict, custom_values, context=nosub_ctx)
                     context.update({'update_body':True})
             else:
@@ -737,20 +654,19 @@ class mail_thread(osv.AbstractModel):
                 context['thread_model'] = model
                 model_pool = self.pool['mail.thread']
             new_msg_id = model_pool.message_post(cr, uid, [thread_id], context=context, subtype='mail.mt_comment', **message_dict)
-            print '\n new_msg_id==',new_msg_id
+
             if partner_ids:
                 # postponed after message_post, because this is an external message and we don't want to create
                 # duplicate emails due to notifications
                 self.pool.get('mail.message').write(cr, uid, [new_msg_id], {'partner_ids': partner_ids}, context=context)
         return thread_id
 
-
-
+        
+        
 class mail_message(osv.Model):
-    _inherit = 'mail.message'
-
+    _inherit = 'mail.message'        
+        
     def create(self, cr, uid, values, context=None):
-        print '\n create of mail_message of helpdesk context',context,values
         context = dict(context or {})
         default_starred = context.pop('default_starred', False)
         if 'email_from' not in values:  # needed to compute reply_to
@@ -761,14 +677,11 @@ class mail_message(osv.Model):
             values['reply_to'] = self._get_reply_to(cr, uid, values, context=context)
         if 'record_name' not in values and 'default_record_name' not in context:
             values['record_name'] = self._get_record_name(cr, uid, values, context=context)
-################# TO STOP AUTO SEND MAIL ON PARTNER AND HELPDESK RECORD CREATION ######
+################# TO STOP AUTO SEND MAIL ON PARTNER AND HELPDESK RECORD CREATION ######   
         if context.get('update_body') == True:
-            print '\n in if condition of route',values,context
             newid = super(osv.Model, self).create(cr, uid, values, context)
         else:
-            print '\n in else condition of route'
             newid = super(osv.Model, self).create(cr, uid, values, context)
-            print '\n in else condition of route after create method',newid
             self._notify(cr, uid, newid, context=context,
                          force_send=context.get('mail_notify_force_send', True),
                          user_signature=context.get('mail_notify_user_signature', True))
@@ -782,15 +695,12 @@ class mail_message(osv.Model):
         if default_starred:
             self.set_message_starred(cr, uid, [newid], True, context=context)
         return newid
-
+        
 
 class project(osv.osv):
     _inherit = "project.project"
 
     def search(self, cr, user, args, offset=0, limit=None, order=None, context=None, count=False):
-        res = super(project, self).search(cr, user, args, offset=offset, limit=limit, order=order,
-            context=context, count=count)
-
         Task_obj = self.pool.get('project.task')
         project_ids = []
         user_tasks = Task_obj.search(cr, user, [('user_id', '=', user)])
@@ -798,27 +708,16 @@ class project(osv.osv):
             if task.project_id.id not in project_ids:
                 project_ids.append(task.project_id.id)
         if user != SUPERUSER_ID:
-            [res.append(project_id) for project_id in project_ids]
-        return res
+            args += ['|',['user_id','=',user],'|', ['members','in',[user]],'|',['user_id','=',False],['id', 'in', project_ids]]
+        return super(project, self).search(cr, user, args, offset=offset, limit=limit, order=order,
+            context=context, count=count)
+        
+        
+class task(osv.osv):
+    _inherit = "project.task"
 
-
-class fetchmail_server(osv.osv):
-    """Incoming POP/IMAP mail server account"""
-    _inherit = 'fetchmail.server'
-    
-    _columns = {
-            'email_sent_from' : fields.char('Email Sent From', size=128),
-            'email_reply_to' : fields.char('Email Replyto', size=128),
-    }
-
-
-
-
-
-
-
-
-
-
-
-
+    def search(self, cr, user, args, offset=0, limit=None, order=None, context=None, count=False):
+        if user != SUPERUSER_ID:
+            args += ['|',['user_id','=',user],['user_id','=',False]]
+        return super(task, self).search(cr, user, args, offset=offset, limit=limit, order=order,
+            context=context, count=count)
