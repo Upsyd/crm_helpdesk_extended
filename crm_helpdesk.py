@@ -49,6 +49,7 @@ class crm_helpdesk(osv.osv):
         defaults = {
             'name': msg.get('subject') or _("No Subject"),
             #'description': desc,
+            'mail_description': desc,
             'email_from': msg.get('from'),
             'email_cc': msg.get('cc'),
             'user_id': False,
@@ -217,6 +218,7 @@ class crm_helpdesk(osv.osv):
     
     _columns = {
         'new_req_count': fields.function(_new_req_count, string='New', type='integer'),
+        'mail_description': fields.text('Description'),
         'in_prog_req_count': fields.function(_in_prog_req_count, string='In Progress', type='integer'),
         'pend_req_count': fields.function(_pend_req_count, string='Pending', type='integer'),
         'close_req_count': fields.function(_close_req_count, string='Closed', type='integer'),
@@ -359,6 +361,7 @@ class mail_mail(osv.Model):
             :return: True
         """
         context = dict(context or {})
+        context['model_name'] = 'crm.helpdesk'
         if context.get('default_model', False) == 'crm.helpdesk' and 'default_res_id' in context:
             ir_mail_server = self.pool.get('ir.mail_server')
             ir_attachment = self.pool['ir.attachment']
