@@ -19,7 +19,7 @@
             <field name="view_mode">tree,form</field>
             <field name="domain">[('state','=','pending')]</field>
             <field name="view_id" eval="False"/>
-            <field name="search_view_id" ref="crm_helpdesk.view_crm_case_helpdesk_filter_extended"/>
+            <field name="search_view_id" ref="view_crm_case_helpdesk_filter_extended"/>
             <field name="help" type="html">
                 <p>
                     Odoo helps you keep track of your Helpdesk Requests to follow
@@ -33,7 +33,7 @@
             <field name="view_mode">tree,form</field>
             <field name="domain">[('state','=', 'draft')]</field>
             <field name="view_id" eval="False"/>
-            <field name="search_view_id" ref="crm_helpdesk.view_crm_case_helpdesk_filter_extended"/>
+            <field name="search_view_id" ref="view_crm_case_helpdesk_filter_extended"/>
             <field name="help" type="html">
                 <p>
                     Odoo helps you keep track of your Helpdesk Requests to follow
@@ -47,7 +47,7 @@
             <field name="view_mode">tree,form</field>
             <field name="domain">[('state', '=', 'open')]</field>
             <field name="view_id" eval="False"/>
-            <field name="search_view_id" ref="crm_helpdesk.view_crm_case_helpdesk_filter_extended"/>
+            <field name="search_view_id" ref="view_crm_case_helpdesk_filter_extended"/>
             <field name="help" type="html">
                 <p>
                     Odoo helps you keep track of your Helpdesk Requests to follow
@@ -61,7 +61,7 @@
             <field name="view_mode">tree,form</field>
             <field name="domain">[('state','=', 'done')]</field>
             <field name="view_id" eval="False"/>
-            <field name="search_view_id" ref="crm_helpdesk.view_crm_case_helpdesk_filter_extended"/>
+            <field name="search_view_id" ref="view_crm_case_helpdesk_filter_extended"/>
             <field name="help" type="html">
                 <p>
                     Odoo helps you keep track of your Helpdesk Requests to follow
@@ -75,7 +75,7 @@
             <field name="view_mode">tree,form</field>
             <field name="domain">[('state','=', 'cancel')]</field>
             <field name="view_id" eval="False"/>
-            <field name="search_view_id" ref="crm_helpdesk.view_crm_case_helpdesk_filter_extended"/>
+            <field name="search_view_id" ref="view_crm_case_helpdesk_filter_extended"/>
             <field name="help" type="html">
                 <p>
                     Odoo helps you keep track of your Helpdesk Requests to follow
@@ -176,7 +176,7 @@
             <field name="view_type">form</field>
             <field name="view_mode">tree,form,calendar</field>
             <field name="view_id" ref="crm_helpdesk.crm_case_tree_view_helpdesk"/>
-            <field name="search_view_id" ref="crm_helpdesk.view_crm_case_helpdesk_filter_extended"/>
+            <field name="search_view_id" ref="view_crm_case_helpdesk_filter_extended"/>
             <field name="domain">['|', ('user_id','=', uid), '|', ('section_id.user_id','=',uid), ('section_id.member_ids', 'in', [uid])]</field>
         </record>
 
@@ -194,7 +194,7 @@
             <field name="view_type">form</field>
             <field name="view_mode">tree,calendar,form</field>
             <field name="view_id" ref="crm_helpdesk.crm_case_tree_view_helpdesk"/>
-            <field name="search_view_id" ref="crm_helpdesk.view_crm_case_helpdesk_filter_extended"/>
+            <field name="search_view_id" ref="view_crm_case_helpdesk_filter_extended"/>
         </record>
 
 
